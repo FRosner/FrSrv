@@ -1,64 +1,15 @@
 package main
 
 import (
+	"FrSrv/socket"
 	"bufio"
 	"log"
-	"net"
 	"os"
-	"os/signal"
 	"strings"
 	"syscall"
 )
 
-type Socket struct {
-	FileDescriptor int
-}
-
-func (socket Socket) Read(bytes []byte) (int, error) {
-	if len(bytes) == 0 {
-		return 0, nil
-	}
-	numBytesRead, err := syscall.Read(socket.FileDescriptor, bytes)
-	if err != nil {
-		numBytesRead = 0
-	}
-	return numBytesRead, err
-}
-
-func (socket Socket) Write(bytes []byte) (int, error) {
-	numBytesWritten, err := syscall.Write(socket.FileDescriptor, bytes)
-	if err != nil {
-		numBytesWritten = 0
-	}
-	return numBytesWritten, err
-}
-
-func (socket *Socket) Close() error {
-	return syscall.Close(socket.FileDescriptor)
-}
-
-var socket *Socket
-
 func main() {
-	ip := "127.0.0.1"
-	port := 8080
-
-	/*
-   	Ensure we close the socket on shutdown
-   	*/
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		log.Println("Shutting down")
-		// TODO can I wait for TIME_WAIT to ensure the socket is indeed reusable?
-		if socket != nil {
-			socket.Close()
-		}
-		log.Println("Closed socket", socket)
-		os.Exit(0)
-	}()
-
 	/*
 	Create a Socket.
 
@@ -67,44 +18,12 @@ func main() {
 
 	See https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/socket.2.html
 	*/
-	socketFileDescriptor, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
-	socket = &Socket{FileDescriptor: socketFileDescriptor}
+
+	s, err := socket.Listen("127.0.0.1", 8080)
 	if err != nil {
 		log.Println("Failed to create Socket:", err)
 		os.Exit(1)
 	}
-	log.Print("Created new socket ", socket)
-
-	/*
-	Useful so I can quickly restart the server but potentially dangerous in production.
-	*/
-	err = syscall.SetsockoptInt(socket.FileDescriptor, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	if err != nil {
-		log.Println("Failed set SO_REUSEADDR:", err)
-		os.Exit(1)
-	}
-
-	/*
-	Bind the Socket to a port
-	*/
-	socketAddress := &syscall.SockaddrInet4{Port: port}
-	copy(socketAddress.Addr[:], net.ParseIP(ip))
-	if err = syscall.Bind(socket.FileDescriptor, socketAddress); err != nil {
-		log.Println("Failed to bind socket:", err)
-		os.Exit(1)
-	}
-	log.Print("Bound socket ", socket, " on ", ip, ":", port)
-
-	/*
-	Listen for incoming connections.
-
-	See https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/listen.2.html
-	*/
-	if err = syscall.Listen(socket.FileDescriptor, syscall.SOMAXCONN); err != nil {
-		log.Println("Failed to listen on Socket:", err)
-		os.Exit(1)
-	}
-	log.Print("Listening on socket ", socket)
 
 	/*
 	Create new new kernel event queue
@@ -127,7 +46,7 @@ func main() {
 	See https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 	*/
 	changeEvent := syscall.Kevent_t{
-		Ident:  uint64(socket.FileDescriptor),
+		Ident:  uint64(s.FileDescriptor),
 		Filter: syscall.EVFILT_READ,
 		Flags:  syscall.EV_ADD | syscall.EV_ENABLE,
 		Fflags: 0,
@@ -176,7 +95,7 @@ func main() {
 				*/
 				log.Println("Client disconnected.")
 				syscall.Close(eventFileDescriptor)
-			} else if eventFileDescriptor == socket.FileDescriptor {
+			} else if eventFileDescriptor == s.FileDescriptor {
 				/*
 				Accept incoming connection.
 				*/
@@ -207,7 +126,7 @@ func main() {
 				/*
 				Echo incoming data until empty line is received.
 				*/
-				clientSocket := Socket{FileDescriptor: int(eventFileDescriptor)}
+				clientSocket := socket.FromFileDescriptor(int(eventFileDescriptor))
 				reader := bufio.NewReader(clientSocket)
 				for {
 					line, err := reader.ReadString('\n')
