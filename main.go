@@ -158,8 +158,11 @@ func main() {
 		newEvents := make([]syscall.Kevent_t, 10)
 		numNewEvents, err := syscall.Kevent(kQueue, nil, newEvents, nil)
 		if err != nil {
-			log.Println("Failed to read new events:", err)
-			os.Exit(1)
+			/*
+			We sometimes get syscall.Errno == 0x4 (EINTR) but that's ok it seems.
+			See https://reviews.llvm.org/D42206
+			*/
+			continue
 		}
 
 		for i := 0; i < numNewEvents; i++ {
