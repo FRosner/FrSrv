@@ -159,7 +159,7 @@ func main() {
 		numNewEvents, err := syscall.Kevent(kQueue, nil, newEvents, nil)
 		if err != nil {
 			/*
-			We sometimes get syscall.Errno == 0x4 (EINTR) but that's ok it seems.
+			We sometimes get syscall.Errno == 0x4 (EINTR) but that's ok it seems. Just keep polling.
 			See https://reviews.llvm.org/D42206
 			*/
 			continue
