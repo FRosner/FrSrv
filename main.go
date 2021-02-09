@@ -51,6 +51,7 @@ func main() {
 	go func() {
 		<-c
 		log.Println("Shutting down")
+		// TODO can I wait for TIME_WAIT to ensure the socket is indeed reusable?
 		if socket != nil {
 			socket.Close()
 		}
