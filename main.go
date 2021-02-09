@@ -1,6 +1,7 @@
 package main
 
 import (
+	"FrSrv/kqueue"
 	"FrSrv/socket"
 	"bufio"
 	"log"
@@ -30,39 +31,9 @@ func main() {
 
 	See https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 	*/
-	kQueue, err := syscall.Kqueue()
+	kQueue, err := kqueue.FromSocket(s)
 	if err != nil {
-		log.Println("Failed to create kernel event queue:", err)
-		os.Exit(1)
-	}
-	log.Print("Created kqueue ", kQueue)
-
-	/*
-	Specify event we want to monitor.
-
-	- EVFILT_READ -> receive only events when there is data to read on the Socket
-	- EV_ADD | EV_ENABLE -> add event and enable it
-
-	See https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-	*/
-	changeEvent := syscall.Kevent_t{
-		Ident:  uint64(s.FileDescriptor),
-		Filter: syscall.EVFILT_READ,
-		Flags:  syscall.EV_ADD | syscall.EV_ENABLE,
-		Fflags: 0,
-		Data:   0,
-		Udata:  nil,
-	}
-
-	/*
-	The kevent() system call is used to register events with the queue, and return any pending events to the user.
-	First, we register the change event with the queue, leaving the third argument empty.
-
-	See https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-	*/
-	changeEventRegistered, err := syscall.Kevent(kQueue, []syscall.Kevent_t{changeEvent}, nil, nil)
-	if err != nil || changeEventRegistered == -1 {
-		log.Print("Failed to register changeEvent:", err)
+		log.Println("Failed to create kqueue:", err)
 		os.Exit(1)
 	}
 
@@ -76,7 +47,7 @@ func main() {
 		*/
 		log.Println("Polling for new events...")
 		newEvents := make([]syscall.Kevent_t, 10)
-		numNewEvents, err := syscall.Kevent(kQueue, nil, newEvents, nil)
+		numNewEvents, err := syscall.Kevent(kQueue.FileDescriptor, nil, newEvents, nil)
 		if err != nil {
 			/*
 			We sometimes get syscall.Errno == 0x4 (EINTR) but that's ok it seems. Just keep polling.
@@ -117,7 +88,7 @@ func main() {
 					Data:   0,
 					Udata:  nil,
 				}
-				socketEventRegistered, err := syscall.Kevent(kQueue, []syscall.Kevent_t{socketEvent}, nil, nil)
+				socketEventRegistered, err := syscall.Kevent(kQueue.FileDescriptor, []syscall.Kevent_t{socketEvent}, nil, nil)
 				if err != nil || socketEventRegistered == -1 {
 					log.Print("Failed to register Socket event:", err)
 					continue
