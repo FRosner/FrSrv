@@ -155,6 +155,7 @@ func main() {
 		/*
 		Then, we query the queue for pending events, leaving the second argument empty.
 		*/
+		log.Println("Polling for new events...")
 		newEvents := make([]syscall.Kevent_t, 10)
 		numNewEvents, err := syscall.Kevent(kQueue, nil, newEvents, nil)
 		if err != nil {
