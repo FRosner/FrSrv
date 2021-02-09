@@ -62,10 +62,10 @@ func main() {
 	/*
 	Create a Socket.
 
-	 - AF_INET = ARPA Internet protocols (IP)
-	 - SOCK_STREAM = sequenced, reliable, two-way connection based byte streams
+	- AF_INET = ARPA Internet protocols (IP)
+	- SOCK_STREAM = sequenced, reliable, two-way connection based byte streams
 
-	 See https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/socket.2.html
+	See https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/socket.2.html
 	*/
 	socketFileDescriptor, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	socket = &Socket{FileDescriptor: socketFileDescriptor}
@@ -74,6 +74,15 @@ func main() {
 		os.Exit(1)
 	}
 	log.Print("Created new socket ", socket)
+
+	/*
+	Useful so I can quickly restart the server but potentially dangerous in production.
+	*/
+	err = syscall.SetsockoptInt(socket.FileDescriptor, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		log.Println("Failed set SO_REUSEADDR:", err)
+		os.Exit(1)
+	}
 
 	/*
 	Bind the Socket to a port
