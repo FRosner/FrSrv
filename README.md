@@ -2,7 +2,7 @@
 
 ## Description
 
-Simple kqueue based TCP echo server.
+Simple kqueue based TCP echo server. See the [blog post](https://dev.to/frosnerd/writing-a-simple-tcp-server-using-kqueue-cah) for details.
 
 ## Usage
 
