@@ -8,7 +8,10 @@ Simple kqueue based TCP echo server. See the [blog post](https://dev.to/frosnerd
 
 ```
 # Start the server
-go run .
+go run main.gp
+
+# Start the client
+go run client.go
 ```
 
 ```
