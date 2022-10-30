@@ -95,6 +95,7 @@ func (eventLoop *EventLoop) Handle(handler Handler) {
 					log.Println("Failed to create Socket for connecting to client:", err)
 					continue
 				}
+				syscall.SetNonblock(socketConnection, true)
 				log.Print("Accepted new connection ", socketConnection, " from ", eventFileDescriptor)
 
 				/*
