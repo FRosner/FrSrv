@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"log"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -25,14 +24,8 @@ func main() {
 	log.Println("Server started. Waiting for incoming connections. ^C to exit.")
 	eventLoop.Handle(func(s *socket.Socket) {
 		reader := bufio.NewReader(s)
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil || strings.TrimSpace(line) == "" {
-				break
-			}
-			log.Print("Read on ", s, ": ", line)
-			s.Write([]byte(line))
-		}
-		s.Close()
+		line, _ := reader.ReadString('\n')
+		log.Print("Read on ", s, ": ", line)
+		s.Write([]byte(line))
 	})
 }
